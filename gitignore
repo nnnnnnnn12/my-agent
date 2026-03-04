@@ -1,0 +1,20 @@
+# 编译产物
+my-agent
+my-agent.exe
+*.exe
+
+# 输出文件（Agent生成的报告等）
+output/
+
+# 环境变量（绝对不能提交！API Key在这里）
+.env
+*.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# 系统文件
+.DS_Store
+Thumbs.db
