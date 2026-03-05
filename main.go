@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"my-agent/agent"
 	"my-agent/api"
+	"my-agent/rag"
 	"my-agent/tools"
 	"os"
 	"strings"
@@ -22,16 +23,13 @@ func runServer() {
 	os.MkdirAll("./data", 0755)
 	os.MkdirAll("./output", 0755)
 
-	server, err := api.NewServer("./data/sessions.db")
+	server, err := api.NewServer("./data/sessions.db", "./data/vectors.json")
 	if err != nil {
-		fmt.Printf("❌ 服务启动失败: %v\n", err)
+		fmt.Printf("❌ 启动失败: %v\n", err)
 		os.Exit(1)
 	}
-
-	// 托管前端界面
 	server.ServeStatic("./frontend")
 	fmt.Println("🌐 前端界面: http://localhost:8080")
-
 	if err := server.Run("localhost:8080"); err != nil {
 		fmt.Printf("❌ 运行失败: %v\n", err)
 		os.Exit(1)
@@ -39,19 +37,20 @@ func runServer() {
 }
 
 func runCLI() {
-	fmt.Println("🤖 My Agent — CLI 模式")
-	fmt.Println("输入 'quit' 退出，'new' 新建会话")
-	fmt.Println("提示: 用 'go run . server' 启动带前端的HTTP服务\n")
+	fmt.Println("🤖 GoAgent — CLI模式（含RAG）")
+	fmt.Println("输入 'quit' 退出，'new' 新建会话，'upload <文件路径>' 上传文档\n")
 
-	systemPrompt := `你是一个专业的AI助手GoAgent。
-你有calculator、web_search和file_writer工具可以使用。
-需要实时信息时用web_search，需要计算时用calculator，
-用户要保存内容时用file_writer。所有回复使用中文。`
+	ragEngine := rag.NewEngine("./data/vectors.json")
+	os.MkdirAll("./data", 0755)
+
+	systemPrompt := `你是GoAgent。工具：calculator、web_search、knowledge_search、file_writer。
+优先用knowledge_search回答已上传文档的问题。所有回复使用中文。`
 
 	newAgent := func() *agent.ReActAgent {
 		ag := agent.NewReActAgent(systemPrompt)
 		ag.RegisterTool(tools.NewCalculatorTool())
 		ag.RegisterTool(tools.NewTavilyTool())
+		ag.RegisterTool(tools.NewRAGSearchTool(ragEngine))
 		ag.RegisterTool(tools.NewFileTool("./output"))
 		return ag
 	}
@@ -77,7 +76,26 @@ func runCLI() {
 		}
 		if input == "new" {
 			myAgent = newAgent()
-			fmt.Println("🔄 新会话已开始\n")
+			fmt.Println("🔄 新会话\n")
+			continue
+		}
+		// 上传文档命令：upload ./path/to/file.md
+		if strings.HasPrefix(input, "upload ") {
+			path := strings.TrimPrefix(input, "upload ")
+			path = strings.TrimSpace(path)
+			content, err := os.ReadFile(path)
+			if err != nil {
+				fmt.Printf("❌ 读取文件失败: %v\n\n", err)
+				continue
+			}
+			name := path[strings.LastIndexAny(path, "/\\")+1:]
+			docID := fmt.Sprintf("doc_%d", len(path))
+			if err := ragEngine.AddDocument(docID, name, string(content)); err != nil {
+				fmt.Printf("❌ 索引失败: %v\n\n", err)
+			} else {
+				myAgent = newAgent() // 重建Agent以感知新文档
+				fmt.Printf("✅ 文档已加入知识库\n\n")
+			}
 			continue
 		}
 

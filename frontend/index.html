@@ -8,105 +8,155 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:#0a0a0f; --surface:#111118; --border:#1e1e2e;
-  --accent:#00ff88; --accent-dim:rgba(0,255,136,0.08); --accent-glow:rgba(0,255,136,0.15);
+  --bg:#0a0a0f; --surface:#111118; --surface2:#16161f; --border:#1e1e2e; --border2:#252535;
+  --accent:#00ff88; --accent-dim:rgba(0,255,136,0.07); --accent-glow:rgba(0,255,136,0.12);
   --text:#e8e8f0; --dim:#5a5a7a; --mid:#9898b8;
   --tool-bg:#0d1a12; --tool-border:#1a3025;
-  --error:#ff4466; --warn:#ffaa00;
+  --error:#ff4466; --warn:#ffaa00; --info:#4488ff;
   --mono:'JetBrains Mono',monospace; --sans:'Syne',sans-serif;
+  --sidebar:280px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
-/* HEADER */
-header{z-index:10;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:rgba(10,10,15,0.95);backdrop-filter:blur(12px);flex-shrink:0;gap:12px}
-.logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.logo-icon{width:30px;height:30px;border:1.5px solid var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;color:var(--accent);box-shadow:0 0 10px var(--accent-glow)}
-.logo-text{font-size:17px;font-weight:800;letter-spacing:-.5px}
+/* ── HEADER ── */
+header{z-index:20;display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;border-bottom:1px solid var(--border);background:rgba(10,10,15,0.97);backdrop-filter:blur(12px);flex-shrink:0;gap:12px}
+.logo{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.logo-icon{width:28px;height:28px;border:1.5px solid var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;color:var(--accent);box-shadow:0 0 8px var(--accent-glow)}
+.logo-text{font-size:16px;font-weight:800;letter-spacing:-.5px}
 .logo-text span{color:var(--accent)}
-.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.status-dot{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:var(--dim)}
-.dot{width:6px;height:6px;border-radius:50%;background:var(--dim)}
-.dot.online{background:var(--accent);box-shadow:0 0 6px var(--accent);animation:pulse 2s infinite}
+.header-right{display:flex;align-items:center;gap:8px}
+.status-pill{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--dim);background:var(--surface);border:1px solid var(--border);padding:3px 9px;border-radius:20px}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--dim);flex-shrink:0}
+.dot.on{background:var(--accent);box-shadow:0 0 5px var(--accent);animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.session-badge{font-family:var(--mono);font-size:10px;color:var(--dim);background:var(--surface);padding:3px 8px;border-radius:4px;border:1px solid var(--border);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.btn{font-family:var(--mono);font-size:11px;color:var(--dim);background:transparent;border:1px solid var(--border);padding:5px 11px;border-radius:5px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.rag-pill{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--dim);background:var(--surface);border:1px solid var(--border);padding:3px 9px;border-radius:20px;cursor:pointer;transition:all .15s}
+.rag-pill:hover,.rag-pill.active{border-color:rgba(0,255,136,.3);color:var(--accent);background:var(--accent-dim)}
+.rag-pill .count{background:var(--accent-dim);border:1px solid rgba(0,255,136,.2);color:var(--accent);padding:1px 5px;border-radius:3px;font-size:9px}
+.btn{font-family:var(--mono);font-size:11px;color:var(--dim);background:transparent;border:1px solid var(--border);padding:4px 10px;border-radius:5px;cursor:pointer;transition:all .15s;white-space:nowrap}
 .btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
-.btn.primary{color:var(--accent);border-color:rgba(0,255,136,.3);background:var(--accent-dim)}
-.btn.primary:hover{background:rgba(0,255,136,.15)}
+.btn.green{color:var(--accent);border-color:rgba(0,255,136,.25);background:var(--accent-dim)}
+.btn.green:hover{background:rgba(0,255,136,.14)}
 
-/* CHAT */
-#chat{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth}
+/* ── LAYOUT ── */
+.layout{flex:1;display:flex;overflow:hidden}
+
+/* ── SIDEBAR (RAG Panel) ── */
+.sidebar{width:var(--sidebar);border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;flex-shrink:0;transition:width .2s,opacity .2s;overflow:hidden}
+.sidebar.collapsed{width:0;opacity:0;pointer-events:none}
+.sidebar-header{padding:14px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.sidebar-title{font-family:var(--mono);font-size:11px;color:var(--mid);letter-spacing:.06em;text-transform:uppercase}
+.sidebar-close{background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;padding:2px 4px;border-radius:3px;transition:color .15s}
+.sidebar-close:hover{color:var(--text)}
+
+/* Upload zone */
+.upload-zone{margin:12px;border:1.5px dashed var(--border2);border-radius:8px;padding:20px 12px;text-align:center;cursor:pointer;transition:all .2s;flex-shrink:0}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent-dim)}
+.upload-zone .upload-icon{font-size:22px;margin-bottom:6px}
+.upload-zone p{font-family:var(--mono);font-size:11px;color:var(--dim);line-height:1.5}
+.upload-zone p span{color:var(--accent)}
+.upload-progress{margin:0 12px 8px;display:none}
+.upload-progress.show{display:block}
+.progress-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:4px}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;width:0;transition:width .3s;animation:progress-pulse 1.5s infinite}
+@keyframes progress-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.progress-text{font-family:var(--mono);font-size:10px;color:var(--mid)}
+
+/* Doc list */
+.doc-list{flex:1;overflow-y:auto;padding:0 12px 12px}
+.doc-list::-webkit-scrollbar{width:3px}
+.doc-list::-webkit-scrollbar-thumb{background:var(--border)}
+.doc-list-label{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;padding:8px 2px 6px;display:flex;align-items:center;justify-content:space-between}
+.doc-item{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 10px;margin-bottom:6px;display:flex;align-items:flex-start;gap:8px;transition:border-color .15s}
+.doc-item:hover{border-color:var(--border2)}
+.doc-icon{font-size:14px;flex-shrink:0;margin-top:1px}
+.doc-info{flex:1;min-width:0}
+.doc-name{font-family:var(--mono);font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc-meta{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px}
+.doc-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:12px;padding:2px;border-radius:3px;transition:color .15s;flex-shrink:0;margin-top:1px}
+.doc-del:hover{color:var(--error)}
+.doc-empty{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:center;padding:16px 8px;line-height:1.6}
+
+/* ── MAIN CHAT ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#chat{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
 #chat::-webkit-scrollbar{width:3px}
 #chat::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 
-/* WELCOME */
-.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px;text-align:center;padding:40px 20px;animation:fadeIn .5s ease}
-.welcome-icon{width:60px;height:60px;border:1.5px solid var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 0 28px var(--accent-glow);margin-bottom:4px}
-.welcome h2{font-size:24px;font-weight:800;letter-spacing:-.5px}
+/* Welcome */
+.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;text-align:center;padding:40px 20px;animation:fadeIn .5s ease}
+.welcome-icon{width:56px;height:56px;border:1.5px solid var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 0 24px var(--accent-glow);margin-bottom:4px}
+.welcome h2{font-size:22px;font-weight:800;letter-spacing:-.5px}
 .welcome h2 span{color:var(--accent)}
-.welcome p{font-size:13px;color:var(--mid);max-width:380px;line-height:1.6}
-.suggestions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:6px;max-width:480px}
-.suggestion{font-family:var(--mono);font-size:11px;color:var(--mid);background:var(--surface);border:1px solid var(--border);padding:6px 13px;border-radius:20px;cursor:pointer;transition:all .15s}
-.suggestion:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
-
-/* MESSAGES */
-.msg-wrap{display:flex;flex-direction:column;gap:5px;animation:slideUp .25s ease;max-width:800px;width:100%;margin:0 auto}
-@keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.welcome p{font-size:13px;color:var(--mid);max-width:360px;line-height:1.6}
+.suggestions{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:6px;max-width:460px}
+.sug{font-family:var(--mono);font-size:11px;color:var(--mid);background:var(--surface);border:1px solid var(--border);padding:6px 12px;border-radius:20px;cursor:pointer;transition:all .15s}
+.sug:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Messages */
+.msg-wrap{display:flex;flex-direction:column;gap:4px;animation:slideUp .22s ease;max-width:760px;width:100%;margin:0 auto}
 .msg-wrap.user{align-items:flex-end}
 .msg-wrap.agent{align-items:flex-start}
 .msg-label{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;padding:0 3px}
-.msg-wrap.user .msg-label{color:var(--accent);opacity:.6}
-.bubble{padding:12px 16px;border-radius:10px;font-size:14px;line-height:1.65;max-width:88%}
+.msg-wrap.user .msg-label{color:var(--accent);opacity:.55}
+.bubble{padding:11px 15px;border-radius:9px;font-size:14px;line-height:1.65;max-width:88%}
 .msg-wrap.user .bubble{background:#161624;border:1px solid var(--border);border-bottom-right-radius:3px}
 .msg-wrap.agent .bubble{background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:3px;white-space:pre-wrap;word-break:break-word;min-width:40px}
-
-/* CURSOR blink */
-.cursor{display:inline-block;width:2px;height:1em;background:var(--accent);margin-left:2px;animation:blink .8s step-end infinite;vertical-align:text-bottom}
+.cursor{display:inline-block;width:2px;height:1em;background:var(--accent);margin-left:1px;animation:blink .8s step-end infinite;vertical-align:text-bottom}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
-/* STEPS */
-.steps-wrap{max-width:800px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:5px;animation:slideUp .25s ease}
+/* Steps */
+.steps-wrap{max-width:760px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:4px;animation:slideUp .22s ease}
 .steps-label{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;padding:0 3px;margin-bottom:2px}
 .step{background:var(--tool-bg);border:1px solid var(--tool-border);border-radius:7px;overflow:hidden}
-.step-header{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;user-select:none;transition:background .15s}
+.step-header{display:flex;align-items:center;gap:7px;padding:8px 11px;cursor:pointer;user-select:none}
 .step-header:hover{background:rgba(0,255,136,.03)}
-.step-num{font-family:var(--mono);font-size:10px;color:var(--accent);background:var(--accent-dim);border:1px solid rgba(0,255,136,.2);width:19px;height:19px;border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.step-title{font-family:var(--mono);font-size:12px;color:var(--mid);flex:1}
+.step-num{font-family:var(--mono);font-size:9px;color:var(--accent);background:var(--accent-dim);border:1px solid rgba(0,255,136,.2);width:18px;height:18px;border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-title{font-family:var(--mono);font-size:11px;color:var(--mid);flex:1}
 .step-title .hl{color:var(--accent)}
-.step-chevron{font-size:10px;color:var(--dim);transition:transform .2s}
+.step-chevron{font-size:9px;color:var(--dim);transition:transform .2s}
 .step.open .step-chevron{transform:rotate(90deg)}
-.step-body{display:none;padding:0 12px 10px 39px;font-family:var(--mono);font-size:11px;color:var(--mid);line-height:1.6}
+.step-body{display:none;padding:0 11px 9px 36px;font-family:var(--mono);font-size:11px;color:var(--mid);line-height:1.6}
 .step.open .step-body{display:block}
-.result-label{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:6px}
-.result-val{color:var(--text);margin-top:3px;white-space:pre-wrap;word-break:break-word}
+.res-label{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-top:5px}
+.res-val{color:var(--text);margin-top:2px;white-space:pre-wrap;word-break:break-word}
 
-/* THINKING */
-.thinking-wrap{max-width:800px;width:100%;margin:0 auto;display:flex;align-items:center;gap:8px;padding:10px 3px;animation:fadeIn .3s ease}
-.dots{display:flex;gap:4px}
-.dots span{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:bounce 1.2s infinite}
+/* Thinking */
+.thinking-wrap{max-width:760px;width:100%;margin:0 auto;display:flex;align-items:center;gap:7px;padding:8px 3px;animation:fadeIn .3s ease}
+.dots{display:flex;gap:3px}
+.dots span{width:4px;height:4px;border-radius:50%;background:var(--accent);animation:bounce 1.2s infinite}
 .dots span:nth-child(2){animation-delay:.2s}
 .dots span:nth-child(3){animation-delay:.4s}
 @keyframes bounce{0%,80%,100%{transform:scale(.6);opacity:.3}40%{transform:scale(1);opacity:1}}
 .thinking-text{font-family:var(--mono);font-size:11px;color:var(--dim)}
 
-/* INPUT */
-.input-area{z-index:10;padding:14px 24px 18px;border-top:1px solid var(--border);background:rgba(10,10,15,.97);backdrop-filter:blur(12px);flex-shrink:0}
-.input-wrap{max-width:800px;margin:0 auto;display:flex;align-items:flex-end;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 11px;transition:border-color .2s}
-.input-wrap:focus-within{border-color:rgba(0,255,136,.3);box-shadow:0 0 0 3px rgba(0,255,136,.05)}
-#input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5;resize:none;max-height:120px;min-height:24px;overflow-y:auto;padding:2px 0}
+/* Input */
+.input-area{z-index:10;padding:12px 20px 16px;border-top:1px solid var(--border);background:rgba(10,10,15,.97);backdrop-filter:blur(12px);flex-shrink:0}
+.input-wrap{max-width:760px;margin:0 auto;display:flex;align-items:flex-end;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 10px;transition:border-color .2s}
+.input-wrap:focus-within{border-color:rgba(0,255,136,.28);box-shadow:0 0 0 3px rgba(0,255,136,.04)}
+#input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5;resize:none;max-height:120px;min-height:22px;overflow-y:auto;padding:1px 0}
 #input::placeholder{color:var(--dim)}
-#send{width:33px;height:33px;border-radius:7px;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;color:#0a0a0f}
-#send:hover{background:#33ffaa;transform:scale(1.05)}
-#send:active{transform:scale(.97)}
+#send{width:31px;height:31px;border-radius:6px;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;color:#0a0a0f}
+#send:hover{background:#2effa0;transform:scale(1.05)}
+#send:active{transform:scale(.96)}
 #send:disabled{background:var(--border);cursor:not-allowed;transform:none}
-#send svg{width:15px;height:15px}
-.input-hint{max-width:800px;margin:7px auto 0;font-family:var(--mono);font-size:10px;color:var(--dim);display:flex;gap:14px}
-.input-hint kbd{background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-family:var(--mono);font-size:10px}
+#send svg{width:14px;height:14px}
+.input-hint{max-width:760px;margin:6px auto 0;font-family:var(--mono);font-size:10px;color:var(--dim);display:flex;gap:12px}
+.input-hint kbd{background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:1px 4px;font-family:var(--mono);font-size:9px}
 
-/* ERROR */
-.error-wrap{max-width:800px;width:100%;margin:0 auto;background:rgba(255,68,102,.06);border:1px solid rgba(255,68,102,.2);border-radius:7px;padding:10px 14px;font-family:var(--mono);font-size:12px;color:var(--error);animation:slideUp .25s ease}
+/* Error */
+.error-wrap{max-width:760px;width:100%;margin:0 auto;background:rgba(255,68,102,.06);border:1px solid rgba(255,68,102,.2);border-radius:7px;padding:9px 13px;font-family:var(--mono);font-size:12px;color:var(--error);animation:slideUp .22s ease}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 18px;font-family:var(--mono);font-size:12px;color:var(--text);z-index:100;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:rgba(0,255,136,.3);color:var(--accent)}
+.toast.error{border-color:rgba(255,68,102,.3);color:var(--error)}
+
+/* Hidden file input */
+#fileInput{display:none}
 </style>
 </head>
 <body>
@@ -117,67 +167,227 @@ header{z-index:10;display:flex;align-items:center;justify-content:space-between;
     <div class="logo-text">Go<span>Agent</span></div>
   </div>
   <div class="header-right">
-    <div class="status-dot">
+    <div class="status-pill">
       <div class="dot" id="statusDot"></div>
       <span id="statusText">connecting</span>
     </div>
-    <div class="session-badge" id="sessionDisplay">no session</div>
-    <button class="btn primary" id="exportBtn" onclick="exportReport()" title="导出聊天记录为Markdown报告">⬇ 导出报告</button>
+    <div class="rag-pill" id="ragPill" onclick="toggleSidebar()" title="知识库">
+      📚 知识库
+      <span class="count" id="ragCount">0</span>
+    </div>
+    <button class="btn green" onclick="exportReport()">⬇ 导出</button>
     <button class="btn" onclick="newSession()">＋ new</button>
   </div>
 </header>
 
-<div id="chat">
-  <div class="welcome" id="welcome">
-    <div class="welcome-icon">🤖</div>
-    <h2>Hello, I'm <span>GoAgent</span></h2>
-    <p>基于 Go 实现的 ReAct Agent，支持工具调用、流式输出和会话持久化。</p>
-    <div class="suggestions">
-      <div class="suggestion" onclick="fillInput(this.textContent)">273742 × 234 = ?</div>
-      <div class="suggestion" onclick="fillInput(this.textContent)">搜索 Go 最新版本</div>
-      <div class="suggestion" onclick="fillInput(this.textContent)">帮我写一份技术报告并保存</div>
-      <div class="suggestion" onclick="fillInput(this.textContent)">计算 (1024+2048)*3 并保存结果</div>
+<div class="layout">
+  <!-- RAG Sidebar -->
+  <div class="sidebar collapsed" id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">📚 知识库</span>
+      <button class="sidebar-close" onclick="toggleSidebar()">✕</button>
+    </div>
+
+    <!-- Upload Zone -->
+    <div class="upload-zone" id="uploadZone"
+         onclick="document.getElementById('fileInput').click()"
+         ondragover="onDragOver(event)"
+         ondragleave="onDragLeave(event)"
+         ondrop="onDrop(event)">
+      <div class="upload-icon">📄</div>
+      <p>点击或拖拽文件上传<br><span>.md / .txt</span> 格式</p>
+    </div>
+    <input type="file" id="fileInput" accept=".md,.txt" multiple onchange="onFileSelect(event)">
+
+    <div class="upload-progress" id="uploadProgress">
+      <div class="progress-text" id="progressText">正在处理...</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+    <div class="doc-list">
+      <div class="doc-list-label">
+        <span>已上传文档</span>
+        <span id="docCountLabel">0 篇</span>
+      </div>
+      <div id="docList">
+        <div class="doc-empty">还没有文档<br>上传后可基于文档提问</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Chat -->
+  <div class="main">
+    <div id="chat">
+      <div class="welcome" id="welcome">
+        <div class="welcome-icon">🤖</div>
+        <h2>Hello, I'm <span>GoAgent</span></h2>
+        <p>支持工具调用、流式输出、知识库检索。上传文档后可基于文档内容提问。</p>
+        <div class="suggestions">
+          <div class="sug" onclick="fillInput(this.textContent)">goroutine和线程的区别？</div>
+          <div class="sug" onclick="fillInput(this.textContent)">RAG的工作流程是什么？</div>
+          <div class="sug" onclick="fillInput(this.textContent)">GoAgent项目架构介绍</div>
+          <div class="sug" onclick="fillInput(this.textContent)">面试怎么介绍这个项目？</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-wrap">
+        <textarea id="input" placeholder="输入问题，Agent 会自主决定是否查询知识库..." rows="1"></textarea>
+        <button id="send" onclick="sendMessage()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+      <div class="input-hint">
+        <span><kbd>Enter</kbd> 发送</span>
+        <span><kbd>Shift+Enter</kbd> 换行</span>
+      </div>
     </div>
   </div>
 </div>
 
-<div class="input-area">
-  <div class="input-wrap">
-    <textarea id="input" placeholder="输入任务，Agent 会自主完成..." rows="1"></textarea>
-    <button id="send" onclick="sendMessage()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-      </svg>
-    </button>
-  </div>
-  <div class="input-hint">
-    <span><kbd>Enter</kbd> 发送</span>
-    <span><kbd>Shift+Enter</kbd> 换行</span>
-  </div>
-</div>
+<div class="toast" id="toast"></div>
 
 <script>
 const API = 'http://localhost:8080'
 let sessionId = null
 let isLoading = false
-
-// 聊天记录，用于导出
-// 每条: { role: 'user'|'agent', text, steps: [{tool, args, result}] }
 let chatHistory = []
 let currentSteps = []
-let stepCount = 0
+let stepIndex = 0
+let sidebarOpen = false
 
-// ── 健康检查 ──
+// ── 初始化 ──
+async function init() {
+  await checkHealth()
+  await loadDocs()
+  setInterval(checkHealth, 10000)
+}
+
 async function checkHealth() {
   try {
     const res = await fetch(`${API}/health`)
-    setStatus(res.ok)
+    if (res.ok) {
+      const data = await res.json()
+      setStatus(true)
+      updateRagCount(data.rag?.docs || 0)
+    } else setStatus(false)
   } catch { setStatus(false) }
 }
 
 function setStatus(online) {
-  document.getElementById('statusDot').className = 'dot' + (online ? ' online' : '')
+  document.getElementById('statusDot').className = 'dot' + (online ? ' on' : '')
   document.getElementById('statusText').textContent = online ? 'online' : 'offline'
+}
+
+function updateRagCount(n) {
+  document.getElementById('ragCount').textContent = n
+  document.getElementById('ragPill').classList.toggle('active', n > 0)
+}
+
+// ── 侧边栏 ──
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen
+  document.getElementById('sidebar').classList.toggle('collapsed', !sidebarOpen)
+  document.getElementById('ragPill').classList.toggle('active', sidebarOpen)
+}
+
+// ── 文档上传 ──
+function onDragOver(e) {
+  e.preventDefault()
+  document.getElementById('uploadZone').classList.add('drag')
+}
+function onDragLeave() {
+  document.getElementById('uploadZone').classList.remove('drag')
+}
+function onDrop(e) {
+  e.preventDefault()
+  document.getElementById('uploadZone').classList.remove('drag')
+  const files = [...e.dataTransfer.files].filter(f => f.name.match(/\.(md|txt)$/i))
+  if (files.length) uploadFiles(files)
+  else showToast('只支持 .md 和 .txt 文件', 'error')
+}
+function onFileSelect(e) {
+  const files = [...e.target.files]
+  if (files.length) uploadFiles(files)
+  e.target.value = ''
+}
+
+async function uploadFiles(files) {
+  const prog = document.getElementById('uploadProgress')
+  const text = document.getElementById('progressText')
+  const fill = document.getElementById('progressFill')
+  prog.classList.add('show')
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    text.textContent = `正在处理 ${file.name}（${i+1}/${files.length}）...`
+    fill.style.width = ((i / files.length) * 80) + '%'
+
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(`${API}/rag/upload`, { method: 'POST', body: form })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      showToast(`✓ ${file.name} 已加入知识库`, 'success')
+    } catch (err) {
+      showToast(`✗ ${file.name}: ${err.message}`, 'error')
+    }
+  }
+
+  fill.style.width = '100%'
+  setTimeout(() => {
+    prog.classList.remove('show')
+    fill.style.width = '0'
+  }, 800)
+
+  await loadDocs()
+}
+
+async function loadDocs() {
+  try {
+    const res = await fetch(`${API}/rag/docs`)
+    const data = await res.json()
+    renderDocList(data.docs || [])
+    updateRagCount(data.count || 0)
+    document.getElementById('docCountLabel').textContent = (data.count || 0) + ' 篇'
+  } catch {}
+}
+
+function renderDocList(docs) {
+  const el = document.getElementById('docList')
+  if (!docs || docs.length === 0) {
+    el.innerHTML = '<div class="doc-empty">还没有文档<br>上传后可基于文档内容提问</div>'
+    return
+  }
+  el.innerHTML = docs.map(d => `
+    <div class="doc-item">
+      <div class="doc-icon">${d.name.endsWith('.md') ? '📝' : '📄'}</div>
+      <div class="doc-info">
+        <div class="doc-name" title="${escHtml(d.name)}">${escHtml(d.name)}</div>
+        <div class="doc-meta">${d.chunk_count} 个片段 · ${formatSize(d.size)}</div>
+      </div>
+      <button class="doc-del" onclick="deleteDoc('${d.id}','${escHtml(d.name)}')" title="删除">✕</button>
+    </div>
+  `).join('')
+}
+
+async function deleteDoc(id, name) {
+  if (!confirm(`确认删除文档 "${name}"？`)) return
+  try {
+    await fetch(`${API}/rag/docs/${id}`, { method: 'DELETE' })
+    showToast(`已删除 ${name}`, 'success')
+    await loadDocs()
+  } catch { showToast('删除失败', 'error') }
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + 'B'
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + 'KB'
+  return (bytes/1024/1024).toFixed(1) + 'MB'
 }
 
 // ── 发送消息（SSE流式）──
@@ -192,19 +402,16 @@ async function sendMessage() {
   autoResize(input)
   setLoading(true)
   currentSteps = []
-  stepCount = 0
+  stepIndex = 0
 
-  // 记录用户消息
   chatHistory.push({ role: 'user', text })
   appendUserMsg(text)
 
-  // 创建Agent回复气泡（流式填入）
   const { wrap, bubble, cursor } = createAgentBubble()
   let agentText = ''
   let stepsWrap = null
   let thinkingEl = appendThinking()
 
-  // 构造SSE请求URL
   const params = new URLSearchParams({ message: text })
   if (sessionId) params.append('session_id', sessionId)
   const es = new EventSource(`${API}/chat/stream?${params}`)
@@ -212,41 +419,32 @@ async function sendMessage() {
   es.addEventListener('session', e => {
     const d = JSON.parse(e.data)
     sessionId = d.session_id
-    document.getElementById('sessionDisplay').textContent = sessionId.slice(0, 20) + '...'
   })
 
   es.addEventListener('thinking', e => {
     const d = JSON.parse(e.data)
-    if (thinkingEl) {
-      thinkingEl.querySelector('.thinking-text').textContent = d.message || '正在思考...'
-    }
+    if (thinkingEl) thinkingEl.querySelector('.thinking-text').textContent = d.message || '正在思考...'
   })
 
   es.addEventListener('step', () => {
-    stepCount++
-    // 首次有步骤时创建steps容器
-    if (!stepsWrap) {
-      stepsWrap = createStepsWrap()
-      wrap.before(stepsWrap)
-    }
+    stepIndex++
+    if (!stepsWrap) { stepsWrap = createStepsWrap(); wrap.before(stepsWrap) }
   })
 
   es.addEventListener('tool_call', e => {
     const d = JSON.parse(e.data)
     if (!stepsWrap) { stepsWrap = createStepsWrap(); wrap.before(stepsWrap) }
-    // 添加一个"执行中"的step
-    addStep(stepsWrap, d.id, d.tool, d.args, null)
+    addStep(stepsWrap, d.id, d.tool, d.args)
     currentSteps.push({ id: d.id, tool: d.tool, args: d.args, result: null })
-    scrollToBottom()
+    scrollBottom()
   })
 
   es.addEventListener('tool_result', e => {
     const d = JSON.parse(e.data)
-    // 更新对应step的结果
     updateStepResult(stepsWrap, d.id, d.result)
     const s = currentSteps.find(x => x.id === d.id)
     if (s) s.result = d.result
-    scrollToBottom()
+    scrollBottom()
   })
 
   es.addEventListener('token', e => {
@@ -255,7 +453,7 @@ async function sendMessage() {
     agentText += d.text
     bubble.innerHTML = escHtml(agentText)
     bubble.appendChild(cursor)
-    scrollToBottom()
+    scrollBottom()
   })
 
   es.addEventListener('done', e => {
@@ -263,16 +461,12 @@ async function sendMessage() {
     es.close()
     cursor.remove()
     if (thinkingEl) { thinkingEl.remove(); thinkingEl = null }
-    if (d.session_id) {
-      sessionId = d.session_id
-      document.getElementById('sessionDisplay').textContent = sessionId.slice(0, 20) + '...'
-    }
-    // 确保最终文本完整
-    const finalText = d.reply || agentText
-    bubble.textContent = finalText
-    chatHistory.push({ role: 'agent', text: finalText, steps: [...currentSteps] })
+    if (d.session_id) sessionId = d.session_id
+    const final = d.reply || agentText
+    bubble.textContent = final
+    chatHistory.push({ role: 'agent', text: final, steps: [...currentSteps] })
     setLoading(false)
-    scrollToBottom()
+    scrollBottom()
   })
 
   es.addEventListener('error', e => {
@@ -283,33 +477,31 @@ async function sendMessage() {
       const d = JSON.parse(e.data)
       appendError(d.message || '请求失败')
     } catch {
-      if (!agentText) appendError('连接失败，请确认后端已启动')
+      if (!agentText) appendError('无法连接后端，请确认 go run . server 已启动')
     }
     setLoading(false)
-    scrollToBottom()
+    scrollBottom()
   })
 
-  // SSE原生error事件（网络断开）
   es.onerror = () => {
     if (isLoading) {
       es.close()
       cursor.remove()
       if (thinkingEl) { thinkingEl.remove(); thinkingEl = null }
-      if (!agentText) appendError('无法连接到后端，请确认 go run . server 已启动')
+      if (!agentText) appendError('连接失败，请确认后端已启动')
       setLoading(false)
-      scrollToBottom()
+      scrollBottom()
     }
   }
 }
 
-// ── DOM 构建函数 ──
+// ── DOM构建 ──
 function appendUserMsg(text) {
-  const chat = document.getElementById('chat')
   const div = document.createElement('div')
   div.className = 'msg-wrap user'
   div.innerHTML = `<div class="msg-label">YOU</div><div class="bubble">${escHtml(text)}</div>`
-  chat.appendChild(div)
-  scrollToBottom()
+  document.getElementById('chat').appendChild(div)
+  scrollBottom()
 }
 
 function createAgentBubble() {
@@ -324,7 +516,7 @@ function createAgentBubble() {
   wrap.innerHTML = '<div class="msg-label">GOAGENT</div>'
   wrap.appendChild(bubble)
   chat.appendChild(wrap)
-  scrollToBottom()
+  scrollBottom()
   return { wrap, bubble, cursor }
 }
 
@@ -336,50 +528,42 @@ function createStepsWrap() {
   return div
 }
 
-let stepIndex = 0
-function addStep(container, id, tool, argsJson, result) {
-  stepIndex++
+let _stepIdx = 0
+function addStep(container, id, tool, argsJson) {
+  _stepIdx++
+  let argsStr = ''
+  try { argsStr = Object.entries(JSON.parse(argsJson)).map(([k,v])=>`${k}: ${String(v).slice(0,60)}`).join(', ') }
+  catch { argsStr = argsJson }
   const step = document.createElement('div')
   step.className = 'step'
   step.dataset.id = id
-  let argsStr = ''
-  try {
-    const args = JSON.parse(argsJson)
-    argsStr = Object.entries(args).map(([k,v]) => `${k}: ${v}`).join(', ')
-  } catch { argsStr = argsJson }
-
   step.innerHTML = `
     <div class="step-header" onclick="this.closest('.step').classList.toggle('open')">
-      <div class="step-num">${stepIndex}</div>
-      <div class="step-title">调用 <span class="hl">${tool}</span> — ${argsStr.slice(0,60)}${argsStr.length>60?'...':''}</div>
+      <div class="step-num">${_stepIdx}</div>
+      <div class="step-title">调用 <span class="hl">${tool}</span>${argsStr ? ' — ' + argsStr.slice(0,50) : ''}</div>
       <div class="step-chevron">▶</div>
     </div>
     <div class="step-body">
-      <div class="result-label">参数</div>
-      <div class="result-val">${escHtml(argsStr)}</div>
-      <div class="result-label">结果</div>
-      <div class="result-val" data-result>${result ? escHtml(result) : '<span style="color:var(--warn)">执行中...</span>'}</div>
-    </div>
-  `
+      <div class="res-label">参数</div>
+      <div class="res-val">${escHtml(argsStr)}</div>
+      <div class="res-label">结果</div>
+      <div class="res-val" data-result><span style="color:var(--warn)">执行中...</span></div>
+    </div>`
   container.appendChild(step)
 }
 
 function updateStepResult(container, id, result) {
   if (!container) return
-  const step = container.querySelector(`[data-id="${id}"]`)
-  if (step) {
-    const el = step.querySelector('[data-result]')
-    if (el) el.textContent = result
-  }
+  const el = container.querySelector(`[data-id="${id}"] [data-result]`)
+  if (el) el.textContent = result
 }
 
 function appendThinking() {
-  const chat = document.getElementById('chat')
   const div = document.createElement('div')
   div.className = 'thinking-wrap'
   div.innerHTML = `<div class="dots"><span></span><span></span><span></span></div><div class="thinking-text">正在思考...</div>`
-  chat.appendChild(div)
-  scrollToBottom()
+  document.getElementById('chat').appendChild(div)
+  scrollBottom()
   return div
 }
 
@@ -388,56 +572,36 @@ function appendError(msg) {
   div.className = 'error-wrap'
   div.textContent = '⚠ ' + msg
   document.getElementById('chat').appendChild(div)
-  scrollToBottom()
+  scrollBottom()
 }
 
 // ── 导出报告 ──
 function exportReport() {
-  if (chatHistory.length === 0) {
-    alert('还没有聊天记录可以导出')
-    return
-  }
-
+  if (chatHistory.length === 0) { showToast('还没有聊天记录', 'error'); return }
   const now = new Date()
-  const dateStr = now.toLocaleString('zh-CN')
-  let md = `# GoAgent 对话报告\n\n`
-  md += `**导出时间**: ${dateStr}  \n`
-  md += `**会话ID**: ${sessionId || '未知'}  \n`
-  md += `**对话轮数**: ${chatHistory.filter(m => m.role === 'user').length} 轮\n\n`
-  md += `---\n\n`
-
-  chatHistory.forEach((msg, i) => {
+  let md = `# GoAgent 对话报告\n\n**时间**: ${now.toLocaleString('zh-CN')}  \n**会话**: ${sessionId || '未知'}  \n**轮数**: ${chatHistory.filter(m=>m.role==='user').length} 轮\n\n---\n\n`
+  chatHistory.forEach(msg => {
     if (msg.role === 'user') {
       md += `## 💬 用户\n\n${msg.text}\n\n`
     } else {
       md += `## 🤖 GoAgent\n\n`
-      // 工具调用步骤
-      if (msg.steps && msg.steps.length > 0) {
+      if (msg.steps?.length) {
         md += `### 执行过程\n\n`
-        msg.steps.forEach((step, si) => {
-          let argsStr = ''
-          try { argsStr = JSON.stringify(JSON.parse(step.args), null, 2) } catch { argsStr = step.args }
-          md += `**步骤 ${si + 1}**: 调用 \`${step.tool}\`\n\n`
-          md += `\`\`\`json\n${argsStr}\n\`\`\`\n\n`
-          if (step.result) {
-            md += `**结果**: ${step.result}\n\n`
-          }
+        msg.steps.forEach((s,i) => {
+          let args = s.args
+          try { args = JSON.stringify(JSON.parse(s.args), null, 2) } catch {}
+          md += `**步骤${i+1}**: \`${s.tool}\`\n\`\`\`\n${args}\n\`\`\`\n**结果**: ${s.result||''}\n\n`
         })
-        md += `### 最终回复\n\n`
+        md += `### 回复\n\n`
       }
-      md += `${msg.text}\n\n`
-      md += `---\n\n`
+      md += `${msg.text}\n\n---\n\n`
     }
   })
-
-  // 创建并下载文件
-  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  a.href = url
-  a.download = `goagent-report-${now.toISOString().slice(0,10)}.md`
+  a.href = URL.createObjectURL(new Blob([md], {type:'text/markdown'}))
+  a.download = `goagent-${now.toISOString().slice(0,10)}.md`
   a.click()
-  URL.revokeObjectURL(url)
+  showToast('报告已导出', 'success')
 }
 
 // ── 新建会话 ──
@@ -445,22 +609,23 @@ function newSession() {
   sessionId = null
   chatHistory = []
   currentSteps = []
+  _stepIdx = 0
   stepIndex = 0
-  document.getElementById('sessionDisplay').textContent = 'no session'
   document.getElementById('chat').innerHTML = `
     <div class="welcome" id="welcome">
       <div class="welcome-icon">🤖</div>
       <h2>Hello, I'm <span>GoAgent</span></h2>
-      <p>基于 Go 实现的 ReAct Agent，支持工具调用、流式输出和会话持久化。</p>
+      <p>支持工具调用、流式输出、知识库检索。上传文档后可基于文档内容提问。</p>
       <div class="suggestions">
-        <div class="suggestion" onclick="fillInput(this.textContent)">273742 × 234 = ?</div>
-        <div class="suggestion" onclick="fillInput(this.textContent)">搜索 Go 最新版本</div>
-        <div class="suggestion" onclick="fillInput(this.textContent)">帮我写一份技术报告并保存</div>
-        <div class="suggestion" onclick="fillInput(this.textContent)">计算 (1024+2048)*3 并保存结果</div>
+        <div class="sug" onclick="fillInput(this.textContent)">goroutine和线程的区别？</div>
+        <div class="sug" onclick="fillInput(this.textContent)">RAG的工作流程是什么？</div>
+        <div class="sug" onclick="fillInput(this.textContent)">GoAgent项目架构介绍</div>
+        <div class="sug" onclick="fillInput(this.textContent)">面试怎么介绍这个项目？</div>
       </div>
     </div>`
 }
 
+// ── 工具函数 ──
 function fillInput(text) {
   const input = document.getElementById('input')
   input.value = text
@@ -474,7 +639,7 @@ function setLoading(state) {
   document.getElementById('input').disabled = state
 }
 
-function scrollToBottom() {
+function scrollBottom() {
   const chat = document.getElementById('chat')
   requestAnimationFrame(() => chat.scrollTop = chat.scrollHeight)
 }
@@ -484,10 +649,17 @@ function autoResize(el) {
   el.style.height = Math.min(el.scrollHeight, 120) + 'px'
 }
 
-function escHtml(text) {
-  return String(text)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/\n/g,'<br>')
+function escHtml(t) {
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')
+}
+
+let toastTimer
+function showToast(msg, type='') {
+  const el = document.getElementById('toast')
+  el.textContent = msg
+  el.className = 'toast show' + (type ? ' '+type : '')
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800)
 }
 
 document.getElementById('input').addEventListener('keydown', e => {
@@ -495,8 +667,7 @@ document.getElementById('input').addEventListener('keydown', e => {
 })
 document.getElementById('input').addEventListener('input', e => autoResize(e.target))
 
-checkHealth()
-setInterval(checkHealth, 10000)
+init()
 </script>
 </body>
 </html>
