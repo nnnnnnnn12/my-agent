@@ -19,24 +19,29 @@ func main() {
 }
 
 func runServer() {
-	// 确保data目录存在
 	os.MkdirAll("./data", 0755)
+	os.MkdirAll("./output", 0755)
 
 	server, err := api.NewServer("./data/sessions.db")
 	if err != nil {
 		fmt.Printf("❌ 服务启动失败: %v\n", err)
 		os.Exit(1)
 	}
+
+	// 托管前端界面
+	server.ServeStatic("./frontend")
+	fmt.Println("🌐 前端界面: http://localhost:8080")
+
 	if err := server.Run("localhost:8080"); err != nil {
-		fmt.Printf("❌ 服务运行失败: %v\n", err)
+		fmt.Printf("❌ 运行失败: %v\n", err)
 		os.Exit(1)
 	}
 }
 
 func runCLI() {
-	fmt.Println("🤖 My Agent - 搜索 + 持久化版本")
-	fmt.Println("====================================")
-	fmt.Println("输入 'quit' 退出，'new' 新建会话\n")
+	fmt.Println("🤖 My Agent — CLI 模式")
+	fmt.Println("输入 'quit' 退出，'new' 新建会话")
+	fmt.Println("提示: 用 'go run . server' 启动带前端的HTTP服务\n")
 
 	systemPrompt := `你是一个专业的AI助手GoAgent。
 你有calculator、web_search和file_writer工具可以使用。

@@ -9,13 +9,31 @@ import (
 	"sync"
 )
 
+type StreamEventType string
+
+const (
+	EventThinking   StreamEventType = "thinking"
+	EventToolCall   StreamEventType = "tool_call"
+	EventToolResult StreamEventType = "tool_result"
+	EventToken      StreamEventType = "token"
+	EventStep       StreamEventType = "step"
+)
+
+type StreamEvent struct {
+	Type StreamEventType
+	Data map[string]string
+}
+
+type StreamCallback func(StreamEvent)
+
 type ReActAgent struct {
-	llmClient *llm.Client
-	memory    *Memory
-	tools     map[string]tools.Tool
-	toolDefs  []llm.Tool
-	MaxSteps  int
-	Verbose   bool
+	llmClient      *llm.Client
+	memory         *Memory
+	tools          map[string]tools.Tool
+	toolDefs       []llm.Tool
+	MaxSteps       int
+	Verbose        bool
+	streamCallback StreamCallback
 }
 
 func NewReActAgent(systemPrompt string) *ReActAgent {
@@ -25,6 +43,16 @@ func NewReActAgent(systemPrompt string) *ReActAgent {
 		tools:     make(map[string]tools.Tool),
 		MaxSteps:  10,
 		Verbose:   true,
+	}
+}
+
+func (a *ReActAgent) SetStreamCallback(cb StreamCallback) {
+	a.streamCallback = cb
+}
+
+func (a *ReActAgent) emit(t StreamEventType, data map[string]string) {
+	if a.streamCallback != nil {
+		a.streamCallback(StreamEvent{Type: t, Data: data})
 	}
 }
 
@@ -47,155 +75,157 @@ func (a *ReActAgent) Run(task string) (string, error) {
 		a.printDivider()
 	}
 
+	a.emit(EventThinking, map[string]string{"message": "正在分析任务..."})
 	a.memory.AddUserMessage(task)
 
 	for step := 1; step <= a.MaxSteps; step++ {
 		if a.Verbose {
 			fmt.Printf("\n[步骤 %d]\n", step)
 		}
+		a.emit(EventStep, map[string]string{"step": fmt.Sprintf("%d", step)})
 
+		// 用非流式调用判断是否需要工具
 		result, err := a.llmClient.Chat(a.memory.GetMessages(), a.toolDefs)
 		if err != nil {
-			return "", fmt.Errorf("步骤%d LLM调用失败: %w", step, err)
+			return "", fmt.Errorf("步骤%d失败: %w", step, err)
 		}
 
-		// 情况A：直接给出答案
+		// ===== 情况A：不需要工具，用流式输出最终回复 =====
 		if !result.IsToolCall {
 			if a.Verbose {
-				fmt.Printf("💡 思考完毕，给出答案\n")
+				fmt.Printf("💡 流式输出最终回复...\n")
+			}
+			a.emit(EventThinking, map[string]string{"message": "正在生成回复..."})
+
+			// 把当前messages发给流式接口，实时推token给前端
+			fullReply, err := a.llmClient.ChatStream(
+				a.memory.GetMessages(),
+				func(token string) {
+					// 每个token实时推给前端
+					a.emit(EventToken, map[string]string{"text": token})
+					if a.Verbose {
+						fmt.Print(token) // CLI模式也实时打印
+					}
+				},
+			)
+			if err != nil {
+				return "", fmt.Errorf("流式输出失败: %w", err)
+			}
+			if a.Verbose {
+				fmt.Println()
 				a.printDivider()
 				fmt.Printf("✅ 任务完成（共 %d 步）\n", step)
 				a.printDivider()
 			}
-			a.memory.AddAssistantMessage(result.Content)
-			return result.Content, nil
+
+			a.memory.AddAssistantMessage(fullReply)
+			return fullReply, nil
 		}
 
-		// 情况B：需要调用工具
+		// ===== 情况B：需要调用工具 =====
 		if a.Verbose {
-			fmt.Printf("🔧 需要调用 %d 个工具", len(result.ToolCalls))
+			fmt.Printf("🔧 调用 %d 个工具", len(result.ToolCalls))
 			if len(result.ToolCalls) > 1 {
-				fmt.Printf("（并发执行）")
+				fmt.Printf("（并发）")
 			}
 			fmt.Println()
 		}
 
+		for _, tc := range result.ToolCalls {
+			a.emit(EventToolCall, map[string]string{
+				"tool": tc.Function.Name,
+				"args": tc.Function.Arguments,
+				"id":   tc.ID,
+			})
+		}
+
 		a.memory.AddToolCallIntent(result.ToolCalls)
 
-		// ===== 核心：并发执行所有工具 =====
 		observations := a.executeToolsConcurrently(result.ToolCalls)
-
-		// 按顺序把结果存入历史（顺序必须和toolCalls一致）
 		for _, obs := range observations {
 			a.memory.AddToolResult(obs.id, obs.name, obs.result)
+			a.emit(EventToolResult, map[string]string{
+				"tool":   obs.name,
+				"result": obs.result,
+				"id":     obs.id,
+			})
 		}
+
+		a.emit(EventThinking, map[string]string{"message": "整合结果，继续推理..."})
 	}
 
-	return "", fmt.Errorf("超过最大步数限制(%d)", a.MaxSteps)
+	return "", fmt.Errorf("超过最大步数(%d)", a.MaxSteps)
 }
 
-// toolObservation 存储单个工具的执行结果
 type toolObservation struct {
-	id     string
-	name   string
-	result string
-	index  int // 保持原始顺序
+	id, name, result string
+	index            int
 }
 
-// executeToolsConcurrently 并发执行多个工具
-// 这是Go goroutine的经典用法：WaitGroup + 带索引的结果收集
 func (a *ReActAgent) executeToolsConcurrently(toolCalls []llm.ToolCall) []toolObservation {
 	results := make([]toolObservation, len(toolCalls))
 	var wg sync.WaitGroup
-
 	for i, tc := range toolCalls {
 		wg.Add(1)
-
-		// 关键：用参数传入i和tc，避免闭包变量捕获问题
-		go func(index int, toolCall llm.ToolCall) {
+		go func(idx int, t llm.ToolCall) {
 			defer wg.Done()
-
 			var args map[string]interface{}
-			json.Unmarshal([]byte(toolCall.Function.Arguments), &args)
-
+			json.Unmarshal([]byte(t.Function.Arguments), &args)
 			if a.Verbose {
-				fmt.Printf("   ⚡ [goroutine %d] 调用 %s(%s)\n",
-					index+1, toolCall.Function.Name, formatArgs(args))
+				fmt.Printf("   ⚡ [g%d] %s(%s)\n", idx+1, t.Function.Name, formatArgs(args))
 			}
-
-			observation := a.executeTool(toolCall)
-
+			obs := a.executeTool(t)
 			if a.Verbose {
-				preview := observation
-				if len(preview) > 150 {
-					preview = preview[:150] + "..."
+				preview := obs
+				if len(preview) > 120 {
+					preview = preview[:120] + "..."
 				}
-				fmt.Printf("   👁  [goroutine %d] 结果: %s\n", index+1, preview)
+				fmt.Printf("   👁  [g%d] %s\n", idx+1, preview)
 			}
-
-			// 写入对应位置，无需加锁（每个goroutine写不同index）
-			results[index] = toolObservation{
-				id:     toolCall.ID,
-				name:   toolCall.Function.Name,
-				result: observation,
-				index:  index,
-			}
+			results[idx] = toolObservation{id: t.ID, name: t.Function.Name, result: obs, index: idx}
 		}(i, tc)
 	}
-
-	wg.Wait() // 等待所有goroutine完成
+	wg.Wait()
 	return results
 }
 
-func (a *ReActAgent) executeTool(toolCall llm.ToolCall) string {
-	tool, exists := a.tools[toolCall.Function.Name]
-	if !exists {
-		return fmt.Sprintf("错误：工具 '%s' 不存在，可用: %s",
-			toolCall.Function.Name, a.availableToolNames())
+func (a *ReActAgent) executeTool(tc llm.ToolCall) string {
+	tool, ok := a.tools[tc.Function.Name]
+	if !ok {
+		return fmt.Sprintf("工具 '%s' 不存在，可用: %s", tc.Function.Name, a.availableToolNames())
 	}
-
 	var args map[string]interface{}
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
+	if err := json.Unmarshal([]byte(tc.Function.Arguments), &args); err != nil {
 		return fmt.Sprintf("参数解析失败: %v", err)
 	}
-
-	result, err := tool.Execute(args)
+	res, err := tool.Execute(args)
 	if err != nil {
 		return fmt.Sprintf("执行出错: %v", err)
 	}
-	return result
+	return res
 }
 
 func (a *ReActAgent) availableToolNames() string {
 	names := make([]string, 0, len(a.tools))
-	for name := range a.tools {
-		names = append(names, name)
+	for n := range a.tools {
+		names = append(names, n)
 	}
 	return strings.Join(names, ", ")
 }
 
-func (a *ReActAgent) printDivider() {
-	fmt.Println("─────────────────────────────────────")
-}
+func (a *ReActAgent) printDivider() { fmt.Println("─────────────────────────────────────") }
 
 func formatArgs(args map[string]interface{}) string {
-	parts := []string{}
+	var parts []string
 	for k, v := range args {
-		val := fmt.Sprintf("%v", v)
-		if len(val) > 60 {
-			val = val[:60] + "..."
+		s := fmt.Sprintf("%v", v)
+		if len(s) > 50 {
+			s = s[:50] + "..."
 		}
-		parts = append(parts, fmt.Sprintf("%s=%q", k, val))
+		parts = append(parts, fmt.Sprintf("%s=%q", k, s))
 	}
 	return strings.Join(parts, ", ")
 }
 
-// GetMessages 返回当前完整对话历史（用于持久化）
-func (a *ReActAgent) GetMessages() []llm.Message {
-	return a.memory.GetMessages()
-}
-
-// RestoreMessages 从外部注入历史消息（用于从数据库恢复会话）
-func (a *ReActAgent) RestoreMessages(messages []llm.Message) {
-	a.memory.SetMessages(messages)
-}
+func (a *ReActAgent) GetMessages() []llm.Message        { return a.memory.GetMessages() }
+func (a *ReActAgent) RestoreMessages(msgs []llm.Message) { a.memory.SetMessages(msgs) }

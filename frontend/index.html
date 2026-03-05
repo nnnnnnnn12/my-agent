@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GoAgent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0a0f; --surface:#111118; --border:#1e1e2e;
+  --accent:#00ff88; --accent-dim:rgba(0,255,136,0.08); --accent-glow:rgba(0,255,136,0.15);
+  --text:#e8e8f0; --dim:#5a5a7a; --mid:#9898b8;
+  --tool-bg:#0d1a12; --tool-border:#1a3025;
+  --error:#ff4466; --warn:#ffaa00;
+  --mono:'JetBrains Mono',monospace; --sans:'Syne',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* HEADER */
+header{z-index:10;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:rgba(10,10,15,0.95);backdrop-filter:blur(12px);flex-shrink:0;gap:12px}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo-icon{width:30px;height:30px;border:1.5px solid var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;color:var(--accent);box-shadow:0 0 10px var(--accent-glow)}
+.logo-text{font-size:17px;font-weight:800;letter-spacing:-.5px}
+.logo-text span{color:var(--accent)}
+.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.status-dot{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--dim)}
+.dot.online{background:var(--accent);box-shadow:0 0 6px var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.session-badge{font-family:var(--mono);font-size:10px;color:var(--dim);background:var(--surface);padding:3px 8px;border-radius:4px;border:1px solid var(--border);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn{font-family:var(--mono);font-size:11px;color:var(--dim);background:transparent;border:1px solid var(--border);padding:5px 11px;border-radius:5px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.btn.primary{color:var(--accent);border-color:rgba(0,255,136,.3);background:var(--accent-dim)}
+.btn.primary:hover{background:rgba(0,255,136,.15)}
+
+/* CHAT */
+#chat{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth}
+#chat::-webkit-scrollbar{width:3px}
+#chat::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* WELCOME */
+.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px;text-align:center;padding:40px 20px;animation:fadeIn .5s ease}
+.welcome-icon{width:60px;height:60px;border:1.5px solid var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 0 28px var(--accent-glow);margin-bottom:4px}
+.welcome h2{font-size:24px;font-weight:800;letter-spacing:-.5px}
+.welcome h2 span{color:var(--accent)}
+.welcome p{font-size:13px;color:var(--mid);max-width:380px;line-height:1.6}
+.suggestions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:6px;max-width:480px}
+.suggestion{font-family:var(--mono);font-size:11px;color:var(--mid);background:var(--surface);border:1px solid var(--border);padding:6px 13px;border-radius:20px;cursor:pointer;transition:all .15s}
+.suggestion:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+
+/* MESSAGES */
+.msg-wrap{display:flex;flex-direction:column;gap:5px;animation:slideUp .25s ease;max-width:800px;width:100%;margin:0 auto}
+@keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.msg-wrap.user{align-items:flex-end}
+.msg-wrap.agent{align-items:flex-start}
+.msg-label{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;padding:0 3px}
+.msg-wrap.user .msg-label{color:var(--accent);opacity:.6}
+.bubble{padding:12px 16px;border-radius:10px;font-size:14px;line-height:1.65;max-width:88%}
+.msg-wrap.user .bubble{background:#161624;border:1px solid var(--border);border-bottom-right-radius:3px}
+.msg-wrap.agent .bubble{background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:3px;white-space:pre-wrap;word-break:break-word;min-width:40px}
+
+/* CURSOR blink */
+.cursor{display:inline-block;width:2px;height:1em;background:var(--accent);margin-left:2px;animation:blink .8s step-end infinite;vertical-align:text-bottom}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* STEPS */
+.steps-wrap{max-width:800px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:5px;animation:slideUp .25s ease}
+.steps-label{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;padding:0 3px;margin-bottom:2px}
+.step{background:var(--tool-bg);border:1px solid var(--tool-border);border-radius:7px;overflow:hidden}
+.step-header{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;user-select:none;transition:background .15s}
+.step-header:hover{background:rgba(0,255,136,.03)}
+.step-num{font-family:var(--mono);font-size:10px;color:var(--accent);background:var(--accent-dim);border:1px solid rgba(0,255,136,.2);width:19px;height:19px;border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-title{font-family:var(--mono);font-size:12px;color:var(--mid);flex:1}
+.step-title .hl{color:var(--accent)}
+.step-chevron{font-size:10px;color:var(--dim);transition:transform .2s}
+.step.open .step-chevron{transform:rotate(90deg)}
+.step-body{display:none;padding:0 12px 10px 39px;font-family:var(--mono);font-size:11px;color:var(--mid);line-height:1.6}
+.step.open .step-body{display:block}
+.result-label{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:6px}
+.result-val{color:var(--text);margin-top:3px;white-space:pre-wrap;word-break:break-word}
+
+/* THINKING */
+.thinking-wrap{max-width:800px;width:100%;margin:0 auto;display:flex;align-items:center;gap:8px;padding:10px 3px;animation:fadeIn .3s ease}
+.dots{display:flex;gap:4px}
+.dots span{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:bounce 1.2s infinite}
+.dots span:nth-child(2){animation-delay:.2s}
+.dots span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:scale(.6);opacity:.3}40%{transform:scale(1);opacity:1}}
+.thinking-text{font-family:var(--mono);font-size:11px;color:var(--dim)}
+
+/* INPUT */
+.input-area{z-index:10;padding:14px 24px 18px;border-top:1px solid var(--border);background:rgba(10,10,15,.97);backdrop-filter:blur(12px);flex-shrink:0}
+.input-wrap{max-width:800px;margin:0 auto;display:flex;align-items:flex-end;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 11px;transition:border-color .2s}
+.input-wrap:focus-within{border-color:rgba(0,255,136,.3);box-shadow:0 0 0 3px rgba(0,255,136,.05)}
+#input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5;resize:none;max-height:120px;min-height:24px;overflow-y:auto;padding:2px 0}
+#input::placeholder{color:var(--dim)}
+#send{width:33px;height:33px;border-radius:7px;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;color:#0a0a0f}
+#send:hover{background:#33ffaa;transform:scale(1.05)}
+#send:active{transform:scale(.97)}
+#send:disabled{background:var(--border);cursor:not-allowed;transform:none}
+#send svg{width:15px;height:15px}
+.input-hint{max-width:800px;margin:7px auto 0;font-family:var(--mono);font-size:10px;color:var(--dim);display:flex;gap:14px}
+.input-hint kbd{background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-family:var(--mono);font-size:10px}
+
+/* ERROR */
+.error-wrap{max-width:800px;width:100%;margin:0 auto;background:rgba(255,68,102,.06);border:1px solid rgba(255,68,102,.2);border-radius:7px;padding:10px 14px;font-family:var(--mono);font-size:12px;color:var(--error);animation:slideUp .25s ease}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">G</div>
+    <div class="logo-text">Go<span>Agent</span></div>
+  </div>
+  <div class="header-right">
+    <div class="status-dot">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">connecting</span>
+    </div>
+    <div class="session-badge" id="sessionDisplay">no session</div>
+    <button class="btn primary" id="exportBtn" onclick="exportReport()" title="导出聊天记录为Markdown报告">⬇ 导出报告</button>
+    <button class="btn" onclick="newSession()">＋ new</button>
+  </div>
+</header>
+
+<div id="chat">
+  <div class="welcome" id="welcome">
+    <div class="welcome-icon">🤖</div>
+    <h2>Hello, I'm <span>GoAgent</span></h2>
+    <p>基于 Go 实现的 ReAct Agent，支持工具调用、流式输出和会话持久化。</p>
+    <div class="suggestions">
+      <div class="suggestion" onclick="fillInput(this.textContent)">273742 × 234 = ?</div>
+      <div class="suggestion" onclick="fillInput(this.textContent)">搜索 Go 最新版本</div>
+      <div class="suggestion" onclick="fillInput(this.textContent)">帮我写一份技术报告并保存</div>
+      <div class="suggestion" onclick="fillInput(this.textContent)">计算 (1024+2048)*3 并保存结果</div>
+    </div>
+  </div>
+</div>
+
+<div class="input-area">
+  <div class="input-wrap">
+    <textarea id="input" placeholder="输入任务，Agent 会自主完成..." rows="1"></textarea>
+    <button id="send" onclick="sendMessage()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    </button>
+  </div>
+  <div class="input-hint">
+    <span><kbd>Enter</kbd> 发送</span>
+    <span><kbd>Shift+Enter</kbd> 换行</span>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8080'
+let sessionId = null
+let isLoading = false
+
+// 聊天记录，用于导出
+// 每条: { role: 'user'|'agent', text, steps: [{tool, args, result}] }
+let chatHistory = []
+let currentSteps = []
+let stepCount = 0
+
+// ── 健康检查 ──
+async function checkHealth() {
+  try {
+    const res = await fetch(`${API}/health`)
+    setStatus(res.ok)
+  } catch { setStatus(false) }
+}
+
+function setStatus(online) {
+  document.getElementById('statusDot').className = 'dot' + (online ? ' online' : '')
+  document.getElementById('statusText').textContent = online ? 'online' : 'offline'
+}
+
+// ── 发送消息（SSE流式）──
+async function sendMessage() {
+  if (isLoading) return
+  const input = document.getElementById('input')
+  const text = input.value.trim()
+  if (!text) return
+
+  document.getElementById('welcome')?.remove()
+  input.value = ''
+  autoResize(input)
+  setLoading(true)
+  currentSteps = []
+  stepCount = 0
+
+  // 记录用户消息
+  chatHistory.push({ role: 'user', text })
+  appendUserMsg(text)
+
+  // 创建Agent回复气泡（流式填入）
+  const { wrap, bubble, cursor } = createAgentBubble()
+  let agentText = ''
+  let stepsWrap = null
+  let thinkingEl = appendThinking()
+
+  // 构造SSE请求URL
+  const params = new URLSearchParams({ message: text })
+  if (sessionId) params.append('session_id', sessionId)
+  const es = new EventSource(`${API}/chat/stream?${params}`)
+
+  es.addEventListener('session', e => {
+    const d = JSON.parse(e.data)
+    sessionId = d.session_id
+    document.getElementById('sessionDisplay').textContent = sessionId.slice(0, 20) + '...'
+  })
+
+  es.addEventListener('thinking', e => {
+    const d = JSON.parse(e.data)
+    if (thinkingEl) {
+      thinkingEl.querySelector('.thinking-text').textContent = d.message || '正在思考...'
+    }
+  })
+
+  es.addEventListener('step', () => {
+    stepCount++
+    // 首次有步骤时创建steps容器
+    if (!stepsWrap) {
+      stepsWrap = createStepsWrap()
+      wrap.before(stepsWrap)
+    }
+  })
+
+  es.addEventListener('tool_call', e => {
+    const d = JSON.parse(e.data)
+    if (!stepsWrap) { stepsWrap = createStepsWrap(); wrap.before(stepsWrap) }
+    // 添加一个"执行中"的step
+    addStep(stepsWrap, d.id, d.tool, d.args, null)
+    currentSteps.push({ id: d.id, tool: d.tool, args: d.args, result: null })
+    scrollToBottom()
+  })
+
+  es.addEventListener('tool_result', e => {
+    const d = JSON.parse(e.data)
+    // 更新对应step的结果
+    updateStepResult(stepsWrap, d.id, d.result)
+    const s = currentSteps.find(x => x.id === d.id)
+    if (s) s.result = d.result
+    scrollToBottom()
+  })
+
+  es.addEventListener('token', e => {
+    const d = JSON.parse(e.data)
+    if (thinkingEl) { thinkingEl.remove(); thinkingEl = null }
+    agentText += d.text
+    bubble.innerHTML = escHtml(agentText)
+    bubble.appendChild(cursor)
+    scrollToBottom()
+  })
+
+  es.addEventListener('done', e => {
+    const d = JSON.parse(e.data)
+    es.close()
+    cursor.remove()
+    if (thinkingEl) { thinkingEl.remove(); thinkingEl = null }
+    if (d.session_id) {
+      sessionId = d.session_id
+      document.getElementById('sessionDisplay').textContent = sessionId.slice(0, 20) + '...'
+    }
+    // 确保最终文本完整
+    const finalText = d.reply || agentText
+    bubble.textContent = finalText
+    chatHistory.push({ role: 'agent', text: finalText, steps: [...currentSteps] })
+    setLoading(false)
+    scrollToBottom()
+  })
+
+  es.addEventListener('error', e => {
+    es.close()
+    cursor.remove()
+    if (thinkingEl) { thinkingEl.remove(); thinkingEl = null }
+    try {
+      const d = JSON.parse(e.data)
+      appendError(d.message || '请求失败')
+    } catch {
+      if (!agentText) appendError('连接失败，请确认后端已启动')
+    }
+    setLoading(false)
+    scrollToBottom()
+  })
+
+  // SSE原生error事件（网络断开）
+  es.onerror = () => {
+    if (isLoading) {
+      es.close()
+      cursor.remove()
+      if (thinkingEl) { thinkingEl.remove(); thinkingEl = null }
+      if (!agentText) appendError('无法连接到后端，请确认 go run . server 已启动')
+      setLoading(false)
+      scrollToBottom()
+    }
+  }
+}
+
+// ── DOM 构建函数 ──
+function appendUserMsg(text) {
+  const chat = document.getElementById('chat')
+  const div = document.createElement('div')
+  div.className = 'msg-wrap user'
+  div.innerHTML = `<div class="msg-label">YOU</div><div class="bubble">${escHtml(text)}</div>`
+  chat.appendChild(div)
+  scrollToBottom()
+}
+
+function createAgentBubble() {
+  const chat = document.getElementById('chat')
+  const wrap = document.createElement('div')
+  wrap.className = 'msg-wrap agent'
+  const bubble = document.createElement('div')
+  bubble.className = 'bubble'
+  const cursor = document.createElement('span')
+  cursor.className = 'cursor'
+  bubble.appendChild(cursor)
+  wrap.innerHTML = '<div class="msg-label">GOAGENT</div>'
+  wrap.appendChild(bubble)
+  chat.appendChild(wrap)
+  scrollToBottom()
+  return { wrap, bubble, cursor }
+}
+
+function createStepsWrap() {
+  const div = document.createElement('div')
+  div.className = 'steps-wrap'
+  div.innerHTML = '<div class="steps-label">AGENT STEPS</div>'
+  document.getElementById('chat').appendChild(div)
+  return div
+}
+
+let stepIndex = 0
+function addStep(container, id, tool, argsJson, result) {
+  stepIndex++
+  const step = document.createElement('div')
+  step.className = 'step'
+  step.dataset.id = id
+  let argsStr = ''
+  try {
+    const args = JSON.parse(argsJson)
+    argsStr = Object.entries(args).map(([k,v]) => `${k}: ${v}`).join(', ')
+  } catch { argsStr = argsJson }
+
+  step.innerHTML = `
+    <div class="step-header" onclick="this.closest('.step').classList.toggle('open')">
+      <div class="step-num">${stepIndex}</div>
+      <div class="step-title">调用 <span class="hl">${tool}</span> — ${argsStr.slice(0,60)}${argsStr.length>60?'...':''}</div>
+      <div class="step-chevron">▶</div>
+    </div>
+    <div class="step-body">
+      <div class="result-label">参数</div>
+      <div class="result-val">${escHtml(argsStr)}</div>
+      <div class="result-label">结果</div>
+      <div class="result-val" data-result>${result ? escHtml(result) : '<span style="color:var(--warn)">执行中...</span>'}</div>
+    </div>
+  `
+  container.appendChild(step)
+}
+
+function updateStepResult(container, id, result) {
+  if (!container) return
+  const step = container.querySelector(`[data-id="${id}"]`)
+  if (step) {
+    const el = step.querySelector('[data-result]')
+    if (el) el.textContent = result
+  }
+}
+
+function appendThinking() {
+  const chat = document.getElementById('chat')
+  const div = document.createElement('div')
+  div.className = 'thinking-wrap'
+  div.innerHTML = `<div class="dots"><span></span><span></span><span></span></div><div class="thinking-text">正在思考...</div>`
+  chat.appendChild(div)
+  scrollToBottom()
+  return div
+}
+
+function appendError(msg) {
+  const div = document.createElement('div')
+  div.className = 'error-wrap'
+  div.textContent = '⚠ ' + msg
+  document.getElementById('chat').appendChild(div)
+  scrollToBottom()
+}
+
+// ── 导出报告 ──
+function exportReport() {
+  if (chatHistory.length === 0) {
+    alert('还没有聊天记录可以导出')
+    return
+  }
+
+  const now = new Date()
+  const dateStr = now.toLocaleString('zh-CN')
+  let md = `# GoAgent 对话报告\n\n`
+  md += `**导出时间**: ${dateStr}  \n`
+  md += `**会话ID**: ${sessionId || '未知'}  \n`
+  md += `**对话轮数**: ${chatHistory.filter(m => m.role === 'user').length} 轮\n\n`
+  md += `---\n\n`
+
+  chatHistory.forEach((msg, i) => {
+    if (msg.role === 'user') {
+      md += `## 💬 用户\n\n${msg.text}\n\n`
+    } else {
+      md += `## 🤖 GoAgent\n\n`
+      // 工具调用步骤
+      if (msg.steps && msg.steps.length > 0) {
+        md += `### 执行过程\n\n`
+        msg.steps.forEach((step, si) => {
+          let argsStr = ''
+          try { argsStr = JSON.stringify(JSON.parse(step.args), null, 2) } catch { argsStr = step.args }
+          md += `**步骤 ${si + 1}**: 调用 \`${step.tool}\`\n\n`
+          md += `\`\`\`json\n${argsStr}\n\`\`\`\n\n`
+          if (step.result) {
+            md += `**结果**: ${step.result}\n\n`
+          }
+        })
+        md += `### 最终回复\n\n`
+      }
+      md += `${msg.text}\n\n`
+      md += `---\n\n`
+    }
+  })
+
+  // 创建并下载文件
+  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `goagent-report-${now.toISOString().slice(0,10)}.md`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ── 新建会话 ──
+function newSession() {
+  sessionId = null
+  chatHistory = []
+  currentSteps = []
+  stepIndex = 0
+  document.getElementById('sessionDisplay').textContent = 'no session'
+  document.getElementById('chat').innerHTML = `
+    <div class="welcome" id="welcome">
+      <div class="welcome-icon">🤖</div>
+      <h2>Hello, I'm <span>GoAgent</span></h2>
+      <p>基于 Go 实现的 ReAct Agent，支持工具调用、流式输出和会话持久化。</p>
+      <div class="suggestions">
+        <div class="suggestion" onclick="fillInput(this.textContent)">273742 × 234 = ?</div>
+        <div class="suggestion" onclick="fillInput(this.textContent)">搜索 Go 最新版本</div>
+        <div class="suggestion" onclick="fillInput(this.textContent)">帮我写一份技术报告并保存</div>
+        <div class="suggestion" onclick="fillInput(this.textContent)">计算 (1024+2048)*3 并保存结果</div>
+      </div>
+    </div>`
+}
+
+function fillInput(text) {
+  const input = document.getElementById('input')
+  input.value = text
+  input.focus()
+  autoResize(input)
+}
+
+function setLoading(state) {
+  isLoading = state
+  document.getElementById('send').disabled = state
+  document.getElementById('input').disabled = state
+}
+
+function scrollToBottom() {
+  const chat = document.getElementById('chat')
+  requestAnimationFrame(() => chat.scrollTop = chat.scrollHeight)
+}
+
+function autoResize(el) {
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+}
+
+function escHtml(text) {
+  return String(text)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\n/g,'<br>')
+}
+
+document.getElementById('input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
+})
+document.getElementById('input').addEventListener('input', e => autoResize(e.target))
+
+checkHealth()
+setInterval(checkHealth, 10000)
+</script>
+</body>
+</html>
