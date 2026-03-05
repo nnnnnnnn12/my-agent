@@ -189,3 +189,13 @@ func formatArgs(args map[string]interface{}) string {
 	}
 	return strings.Join(parts, ", ")
 }
+
+// GetMessages 返回当前完整对话历史（用于持久化）
+func (a *ReActAgent) GetMessages() []llm.Message {
+	return a.memory.GetMessages()
+}
+
+// RestoreMessages 从外部注入历史消息（用于从数据库恢复会话）
+func (a *ReActAgent) RestoreMessages(messages []llm.Message) {
+	a.memory.SetMessages(messages)
+}

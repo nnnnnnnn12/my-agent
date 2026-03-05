@@ -55,3 +55,8 @@ func (m *Memory) Clear() {
 		m.messages = nil
 	}
 }
+
+// SetMessages 直接替换全部消息（用于从数据库恢复）
+func (m *Memory) SetMessages(messages []llm.Message) {
+	m.messages = messages
+}

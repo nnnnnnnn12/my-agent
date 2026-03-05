@@ -11,9 +11,6 @@ import (
 )
 
 func main() {
-	// 根据启动参数决定运行模式
-	// go run . server  → 启动HTTP服务
-	// go run .         → 命令行对话模式
 	if len(os.Args) > 1 && os.Args[1] == "server" {
 		runServer()
 	} else {
@@ -22,26 +19,34 @@ func main() {
 }
 
 func runServer() {
-	server := api.NewServer()
+	// 确保data目录存在
+	os.MkdirAll("./data", 0755)
+
+	server, err := api.NewServer("./data/sessions.db")
+	if err != nil {
+		fmt.Printf("❌ 服务启动失败: %v\n", err)
+		os.Exit(1)
+	}
 	if err := server.Run("localhost:8080"); err != nil {
-		fmt.Printf("服务启动失败: %v\n", err)
+		fmt.Printf("❌ 服务运行失败: %v\n", err)
 		os.Exit(1)
 	}
 }
 
 func runCLI() {
-	fmt.Println("🤖 My Agent - 第四周：并发 + HTTP API")
-	fmt.Println("========================================")
-	fmt.Println("命令行模式 | 输入 'quit' 退出，'new' 新建会话")
-	fmt.Println("提示：用 'go run . server' 启动HTTP服务模式\n")
+	fmt.Println("🤖 My Agent - 搜索 + 持久化版本")
+	fmt.Println("====================================")
+	fmt.Println("输入 'quit' 退出，'new' 新建会话\n")
 
 	systemPrompt := `你是一个专业的AI助手GoAgent。
-你有calculator和file_writer工具可以使用。
-遇到计算一定用工具，不要自己估算。所有回复用中文。`
+你有calculator、web_search和file_writer工具可以使用。
+需要实时信息时用web_search，需要计算时用calculator，
+用户要保存内容时用file_writer。所有回复使用中文。`
 
 	newAgent := func() *agent.ReActAgent {
 		ag := agent.NewReActAgent(systemPrompt)
 		ag.RegisterTool(tools.NewCalculatorTool())
+		ag.RegisterTool(tools.NewTavilyTool())
 		ag.RegisterTool(tools.NewFileTool("./output"))
 		return ag
 	}
@@ -57,7 +62,6 @@ func runCLI() {
 		if !scanner.Scan() {
 			break
 		}
-
 		input := strings.TrimSpace(scanner.Text())
 		if input == "" {
 			continue

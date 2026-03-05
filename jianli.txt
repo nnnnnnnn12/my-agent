@@ -1,0 +1,18 @@
+📄 简历怎么写
+这是最重要的部分，直接复制改改就能用：
+项目名： GoAgent — 基于 Go 的 ReAct AI Agent 框架
+描述：
+
+独立设计并实现了一个 AI Agent 框架，基于 ReAct 模式（Reasoning+Acting）自主完成多步骤任务。
+使用 Go 原生 goroutine 并发执行多工具调用，相比串行方案减少等待时间；
+基于 Gin 框架封装 HTTP API，支持多用户并发会话管理（sync.RWMutex）；
+对接 DeepSeek LLM 的 Function Calling 协议，实现可插拔的 Tool 扩展机制。
+
+技术栈： Go、Gin、LLM Function Calling、ReAct、goroutine、REST API
+
+
+🎯 面试常见问题，你现在都能答
+"介绍一下你的Agent项目" → 照着README的项目简介说
+"ReAct是什么" → Reasoning+Acting交替循环，每步行动后观察结果再推理
+"并发安全怎么处理的" → 工具结果写不同数组下标无需加锁，会话Map用RWMutex
+"为什么用Go不用Python" → 并发性能、类型安全、工程化更规范，Go后端岗位差异化竞争
